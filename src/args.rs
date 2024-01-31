@@ -1,19 +1,19 @@
 use {crate::error::Error, anyhow::Result, clap::Arg, std::str::FromStr};
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum Privilege {
+pub(crate) enum Privilege {
     Normal,
     Experimental,
 }
 
 #[derive(Debug)]
-pub struct CallArgs {
-    pub privileges: Privilege,
-    pub command: Command,
+pub(crate) struct CallArgs {
+    pub(crate) privileges: Privilege,
+    pub(crate) command: Command,
 }
 
 impl CallArgs {
-    pub fn validate(&self) -> Result<()> {
+    pub(crate) fn validate(&self) -> Result<()> {
         if self.privileges == Privilege::Experimental {
             return Ok(());
         }
@@ -28,30 +28,24 @@ impl CallArgs {
 }
 
 #[derive(Debug)]
-pub enum ManualFormat {
+pub(crate) enum ManualFormat {
     Manpages,
     Markdown,
 }
 
 #[derive(Debug)]
-pub enum InitOutput {
-    Stdout,
-    File(String),
-}
-
-#[derive(Debug)]
-pub enum Command {
+pub(crate) enum Command {
     Manual { path: String, format: ManualFormat },
     Autocomplete { path: String, shell: clap_complete::Shell },
 }
 
-pub struct ClapArgumentLoader {}
+pub(crate) struct ClapArgumentLoader {}
 
 impl ClapArgumentLoader {
-    pub fn root_command() -> clap::Command {
+    pub(crate) fn root_command() -> clap::Command {
         clap::Command::new("ranger")
             .version(env!("CARGO_PKG_VERSION"))
-            .about("ranger.")
+            .about("ranger - local development on steroids")
             .author("replicadse <aw@voidpointergroup.com>")
             .propagate_version(true)
             .subcommand_required(true)
@@ -86,7 +80,7 @@ impl ClapArgumentLoader {
             )
     }
 
-    pub fn load() -> Result<CallArgs> {
+    pub(crate) fn load() -> Result<CallArgs> {
         let command = Self::root_command().get_matches();
 
         let privileges = if command.get_flag("experimental") {

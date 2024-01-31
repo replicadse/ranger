@@ -1,0 +1,13 @@
+version: "0.0.0"
+ranger:
+  tasks:
+    prepare:
+      exec: |-
+        cat Cargo.toml
+    build:
+      pre:
+        - prepare
+      env:
+        RUST_BACKTRACE: !static "1"
+      exec: |-
+        cargo build

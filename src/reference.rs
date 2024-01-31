@@ -19,14 +19,14 @@ fn collect_commands() -> Vec<(String, clap::Command)> {
     cmds
 }
 
-pub fn build_shell_completion(outdir: &Path, shell: &Shell) -> Result<()> {
+pub(crate) fn build_shell_completion(outdir: &Path, shell: &Shell) -> Result<()> {
     let mut app = ClapArgumentLoader::root_command();
     clap_complete::generate_to(*shell, &mut app, "ranger", &outdir)?;
 
     Ok(())
 }
 
-pub fn build_markdown(outdir: &Path) -> Result<()> {
+pub(crate) fn build_markdown(outdir: &Path) -> Result<()> {
     for cmd in collect_commands() {
         let file = Path::new(&outdir).join(&format!("{}.md", cmd.0.strip_prefix("-").unwrap()));
         let mut file = File::create(&file)?;
@@ -35,7 +35,7 @@ pub fn build_markdown(outdir: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn build_manpages(outdir: &Path) -> Result<()> {
+pub(crate) fn build_manpages(outdir: &Path) -> Result<()> {
     for cmd in collect_commands() {
         let file = Path::new(&outdir).join(&format!("{}.1", cmd.0.strip_prefix("-").unwrap()));
         let mut file = File::create(&file)?;

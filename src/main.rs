@@ -1,8 +1,8 @@
 include!("check_features.rs");
 
-pub mod args;
-pub mod error;
-pub mod reference;
+pub(crate) mod args;
+pub(crate) mod error;
+pub(crate) mod reference;
 
 use {anyhow::Result, args::ManualFormat, std::path::PathBuf};
 

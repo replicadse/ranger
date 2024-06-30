@@ -1,4 +1,4 @@
-use {crate::error::Error, anyhow::Result, clap::Arg, std::{collections::HashMap, str::FromStr}};
+use {crate::error::Error, anyhow::Result, clap::{Arg, ArgAction}, std::{collections::HashMap, str::FromStr}};
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Privilege {
@@ -43,13 +43,20 @@ pub enum Command {
 
 #[derive(Debug)]
 pub enum GenerateCommand {
+    Local {
+        out: String,
+        source: String,
+        values: HashMap<String, String>,
+        force: bool,
+    },
     Git {
         out: String,
         repo: String,
         branch: String,
         folder: String,
-        vars: HashMap<String, String>,
-    }
+        values: HashMap<String, String>,
+        force: bool,
+    },
 }
 
 pub struct ClapArgumentLoader {}
@@ -93,6 +100,7 @@ impl ClapArgumentLoader {
             )
             .subcommand(
                 clap::Command::new("generate")
+                    .subcommand_required(true)
                     .about("Generate command.")
                     .subcommand(
                         clap::Command::new("git")
@@ -100,7 +108,29 @@ impl ClapArgumentLoader {
                             .arg(clap::Arg::new("out").short('o').long("out").required(true))
                             .arg(clap::Arg::new("repo").short('r').long("repo").default_value("https://github.com/replicadse/ranger.git"))
                             .arg(clap::Arg::new("branch").short('b').long("branch").default_value("master"))
-                            .arg(clap::Arg::new("folder").short('f').long("folder").required(false)),
+                            .arg(clap::Arg::new("folder").short('f').long("folder").default_value("./"))
+                            .arg(
+                                clap::Arg::new("value")
+                                    .short('v')
+                                    .long("value")
+                                    .action(ArgAction::Append)
+                                    .help("A value for a variable in the template (placeholder)."),
+                            )
+                            .arg(clap::Arg::new("force").long("force").action(ArgAction::SetTrue))
+                    )
+                    .subcommand(
+                        clap::Command::new("local")
+                            .about("Generate from a local source folder.")
+                            .arg(clap::Arg::new("out").short('o').long("out").required(true))
+                            .arg(clap::Arg::new("source").short('s').long("source").required(true))
+                            .arg(
+                                clap::Arg::new("value")
+                                    .short('v')
+                                    .long("value")
+                                    .action(ArgAction::Append)
+                                    .help("A value for a variable in the template (placeholder)."),
+                            )
+                            .arg(clap::Arg::new("force").long("force").action(ArgAction::SetTrue))
                     ),
             )
     }
@@ -130,12 +160,34 @@ impl ClapArgumentLoader {
             }
         } else if let Some(subc) = command.subcommand_matches("generate") {
             if let Some(subc) = subc.subcommand_matches("git") {
+                let mut values = HashMap::<String, String>::new();
+                if let Some(v_arg) = subc.get_many::<String>("value") {
+                    for vo in v_arg {
+                        let spl = vo.splitn(2, "=").collect::<Vec<_>>();
+                        values.insert(spl[0].into(), spl[1].into());
+                    }
+                }
                 Command::Generate(GenerateCommand::Git {
                     out: subc.get_one::<String>("out").unwrap().into(),
                     repo: subc.get_one::<String>("repo").unwrap().into(),
                     branch: subc.get_one::<String>("branch").unwrap().into(),
                     folder: subc.get_one::<String>("folder").unwrap().into(),
-                    vars: HashMap::new(),
+                    values,
+                    force: subc.get_flag("force"),
+                })
+            } else if let Some(subc) = subc.subcommand_matches("local") {
+                let mut values = HashMap::<String, String>::new();
+                if let Some(v_arg) = subc.get_many::<String>("value") {
+                    for vo in v_arg {
+                        let spl = vo.splitn(2, "=").collect::<Vec<_>>();
+                        values.insert(spl[0].into(), spl[1].into());
+                    }
+                }
+                Command::Generate(GenerateCommand::Local {
+                    out: subc.get_one::<String>("out").unwrap().into(),
+                    source: subc.get_one::<String>("source").unwrap().into(),
+                    values,
+                    force: subc.get_flag("force"),
                 })
             } else {
                 return Err(Error::UnknownCommand.into());    

@@ -1,14 +1,14 @@
 [package]
-name = "ranger"
+name = "{{ vars.app.name }}"
 version = "0.0.0"
-authors = ["Alexander Weber <aw@voidpointergroup.com>"]
+authors = ["{{ vars.author.name }} <{{ vars.author.email }}>"]
 edition = "2021"
 license = "MIT"
-description = "ranger."
-homepage = "https://github.com/replicadse/ranger"
-repository = "https://github.com/replicadse/ranger"
-keywords = ["ranger"]
-categories = ["command-line-utilities"]
+description = "{{ vars.app.description }}"
+homepage = "{{ vars.app.repo }}"
+repository = "{{ vars.app.repo }}"
+keywords = {{ vars.app.cargo.keywords }}
+categories = {{ vars.app.cargo.categories }}
 readme = "docs/README.md"
 
 [features]
@@ -28,9 +28,6 @@ bytes = "1.4.0"
 mime = "0.3.17"
 anyhow = "1.0.72"
 thiserror = "1.0.44"
-git2 = "0.19.0"
-walkdir = "2.5.0"
-handlebars = "5.1.2"
 
 [dev-dependencies]
 rusty-hook = "0.11.2"

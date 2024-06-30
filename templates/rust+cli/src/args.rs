@@ -1,4 +1,4 @@
-use {crate::error::Error, anyhow::Result, clap::Arg, std::{collections::HashMap, str::FromStr}};
+use {crate::error::Error, anyhow::Result, clap::Arg, std::str::FromStr};
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Privilege {
@@ -37,29 +37,16 @@ pub enum ManualFormat {
 pub enum Command {
     Manual { path: String, format: ManualFormat },
     Autocomplete { path: String, shell: clap_complete::Shell },
-
-    Generate(GenerateCommand),
-}
-
-#[derive(Debug)]
-pub enum GenerateCommand {
-    Git {
-        out: String,
-        repo: String,
-        branch: String,
-        folder: String,
-        vars: HashMap<String, String>,
-    }
 }
 
 pub struct ClapArgumentLoader {}
 
 impl ClapArgumentLoader {
     pub fn root_command() -> clap::Command {
-        clap::Command::new("ranger")
+        clap::Command::new("{{ vars.app.name }}")
             .version(env!("CARGO_PKG_VERSION"))
-            .about("ranger - local development on steroids")
-            .author("replicadse <aw@voidpointergroup.com>")
+            .about("{{ vars.app.about }}")
+            .author("{{ vars.author.name }} <{{ vars.author.email }}>")
             .propagate_version(true)
             .subcommand_required(true)
             .args([Arg::new("experimental")
@@ -91,18 +78,6 @@ impl ClapArgumentLoader {
                             .required(true),
                     ),
             )
-            .subcommand(
-                clap::Command::new("generate")
-                    .about("Generate command.")
-                    .subcommand(
-                        clap::Command::new("git")
-                            .about("Generate from git repo.")
-                            .arg(clap::Arg::new("out").short('o').long("out").required(true))
-                            .arg(clap::Arg::new("repo").short('r').long("repo").default_value("https://github.com/replicadse/ranger.git"))
-                            .arg(clap::Arg::new("branch").short('b').long("branch").default_value("master"))
-                            .arg(clap::Arg::new("folder").short('f').long("folder").required(false)),
-                    ),
-            )
     }
 
     pub fn load() -> Result<CallArgs> {
@@ -127,18 +102,6 @@ impl ClapArgumentLoader {
             Command::Autocomplete {
                 path: subc.get_one::<String>("out").unwrap().into(),
                 shell: clap_complete::Shell::from_str(subc.get_one::<String>("shell").unwrap().as_str()).unwrap(),
-            }
-        } else if let Some(subc) = command.subcommand_matches("generate") {
-            if let Some(subc) = subc.subcommand_matches("git") {
-                Command::Generate(GenerateCommand::Git {
-                    out: subc.get_one::<String>("out").unwrap().into(),
-                    repo: subc.get_one::<String>("repo").unwrap().into(),
-                    branch: subc.get_one::<String>("branch").unwrap().into(),
-                    folder: subc.get_one::<String>("folder").unwrap().into(),
-                    vars: HashMap::new(),
-                })
-            } else {
-                return Err(Error::UnknownCommand.into());    
             }
         } else {
             return Err(Error::UnknownCommand.into());

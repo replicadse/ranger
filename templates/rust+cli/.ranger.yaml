@@ -1,0 +1,9 @@
+vars:
+  app.name: {}
+  app.about: {}
+  app.description: {}
+  app.cargo.keywords: {}
+  app.cargo.categories: {}
+  app.repo: {}
+  author.name: {}
+  author.email: {}

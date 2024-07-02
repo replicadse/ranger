@@ -46,7 +46,7 @@ pub enum GenerateCommand {
     Local {
         out: String,
         source: String,
-        values: HashMap<String, String>,
+        vars: HashMap<String, String>,
         force: bool,
     },
     Git {
@@ -54,7 +54,7 @@ pub enum GenerateCommand {
         repo: String,
         branch: String,
         folder: String,
-        values: HashMap<String, String>,
+        vars: HashMap<String, String>,
         force: bool,
     },
 }
@@ -110,11 +110,16 @@ impl ClapArgumentLoader {
                             .arg(clap::Arg::new("branch").short('b').long("branch").default_value("master"))
                             .arg(clap::Arg::new("folder").short('f').long("folder").default_value("./"))
                             .arg(
-                                clap::Arg::new("value")
+                                clap::Arg::new("var")
                                     .short('v')
-                                    .long("value")
+                                    .long("var")
                                     .action(ArgAction::Append)
-                                    .help("A value for a variable in the template (placeholder)."),
+                                    .help("A variable in the template (placeholder). This takes precendence over varfile."),
+                            )
+                            .arg(
+                                clap::Arg::new("varfile")
+                                    .long("varfile")
+                                    .help("A file path containing variables in the template (placeholder)."),
                             )
                             .arg(clap::Arg::new("force").long("force").action(ArgAction::SetTrue))
                     )
@@ -124,11 +129,16 @@ impl ClapArgumentLoader {
                             .arg(clap::Arg::new("out").short('o').long("out").required(true))
                             .arg(clap::Arg::new("source").short('s').long("source").required(true))
                             .arg(
-                                clap::Arg::new("value")
+                                clap::Arg::new("var")
                                     .short('v')
-                                    .long("value")
+                                    .long("var")
                                     .action(ArgAction::Append)
-                                    .help("A value for a variable in the template (placeholder)."),
+                                    .help("A variable in the template (placeholder). This takes precendence over varfile."),
+                            )
+                            .arg(
+                                clap::Arg::new("varfile")
+                                    .long("varfile")
+                                    .help("A file path containing variables in the template (placeholder)."),
                             )
                             .arg(clap::Arg::new("force").long("force").action(ArgAction::SetTrue))
                     ),
@@ -160,11 +170,18 @@ impl ClapArgumentLoader {
             }
         } else if let Some(subc) = command.subcommand_matches("generate") {
             if let Some(subc) = subc.subcommand_matches("git") {
-                let mut values = HashMap::<String, String>::new();
-                if let Some(v_arg) = subc.get_many::<String>("value") {
+                let mut vars = HashMap::<String, String>::new();
+                if let Some(v_argfile) = subc.get_one::<String>("varfile") {
+                    let file = std::fs::read_to_string(v_argfile)?;
+                    for vo in file.lines() {
+                        let spl = vo.splitn(2, "=").collect::<Vec<_>>();
+                        vars.insert(spl[0].into(), spl[1].into());
+                    }
+                }
+                if let Some(v_arg) = subc.get_many::<String>("var") {
                     for vo in v_arg {
                         let spl = vo.splitn(2, "=").collect::<Vec<_>>();
-                        values.insert(spl[0].into(), spl[1].into());
+                        vars.insert(spl[0].into(), spl[1].into());
                     }
                 }
                 Command::Generate(GenerateCommand::Git {
@@ -172,21 +189,28 @@ impl ClapArgumentLoader {
                     repo: subc.get_one::<String>("repo").unwrap().into(),
                     branch: subc.get_one::<String>("branch").unwrap().into(),
                     folder: subc.get_one::<String>("folder").unwrap().into(),
-                    values,
+                    vars,
                     force: subc.get_flag("force"),
                 })
             } else if let Some(subc) = subc.subcommand_matches("local") {
-                let mut values = HashMap::<String, String>::new();
-                if let Some(v_arg) = subc.get_many::<String>("value") {
+                let mut vars = HashMap::<String, String>::new();
+                if let Some(v_argfile) = subc.get_one::<String>("varfile") {
+                    let file = std::fs::read_to_string(v_argfile)?;
+                    for vo in file.lines() {
+                        let spl = vo.splitn(2, "=").collect::<Vec<_>>();
+                        vars.insert(spl[0].into(), spl[1].into());
+                    }
+                }
+                if let Some(v_arg) = subc.get_many::<String>("var") {
                     for vo in v_arg {
                         let spl = vo.splitn(2, "=").collect::<Vec<_>>();
-                        values.insert(spl[0].into(), spl[1].into());
+                        vars.insert(spl[0].into(), spl[1].into());
                     }
                 }
                 Command::Generate(GenerateCommand::Local {
                     out: subc.get_one::<String>("out").unwrap().into(),
                     source: subc.get_one::<String>("source").unwrap().into(),
-                    values,
+                    vars,
                     force: subc.get_flag("force"),
                 })
             } else {

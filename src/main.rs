@@ -50,7 +50,7 @@ async fn main() -> Result<()> {
                         let _ = std::fs::remove_dir_all(&out);
                     }
                     if std::fs::create_dir_all(&out).is_err() {
-                        return Err(anyhow::anyhow!("failed to create output directory"));
+                        return Err(anyhow::anyhow!("failed to create output directory - might already exist"));
                     }
 
                     let render_result = render(&vars, &root_dir, out_path_root);
@@ -75,7 +75,7 @@ async fn main() -> Result<()> {
                         let _ = std::fs::remove_dir_all(&out);
                     }
                     if std::fs::create_dir_all(&out).is_err() {
-                        return Err(anyhow::anyhow!("failed to create output directory"));
+                        return Err(anyhow::anyhow!("failed to create output directory - might already exist"));
                     }
 
                     match render(&vars, &source, out_path_root) {

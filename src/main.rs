@@ -5,7 +5,7 @@ pub mod error;
 pub mod reference;
 mod blueprint;
 
-use {anyhow::Result, args::ManualFormat, blueprint::Blueprint, git2::FetchOptions, std::{collections::HashMap, path::{Path, PathBuf}}};
+use {anyhow::Result, args::ManualFormat, blueprint::Blueprint, git2::FetchOptions, handlebars::JsonRender, std::{collections::HashMap, path::{Path, PathBuf}}};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -91,6 +91,29 @@ async fn main() -> Result<()> {
     }
 }
 
+struct Helper {
+    cmd: String,
+}
+impl handlebars::HelperDef for Helper {
+    fn call_inner<'reg: 'rc, 'rc>(
+        &self,
+        h: &handlebars::Helper<'rc>,
+        _: &handlebars::Handlebars<'reg>,
+        _: &handlebars::Context,
+        _: &mut handlebars::RenderContext<'reg, 'rc>
+    ) -> std::result::Result<handlebars::ScopedJson<'rc>, handlebars::RenderError>{
+        let output = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(&self.cmd)
+            .env("VALUE", h.param(0).unwrap().value().render())
+            .output()?;
+        let v = serde_json::Value::String(
+            String::from_utf8(output.stdout).unwrap()
+        );
+        Ok(handlebars::ScopedJson::Derived(v))
+    }
+}
+
 fn render(vars: &HashMap<String, String>, root_dir: &Path, out_path_root: &Path) -> Result<(), anyhow::Error> {
     let mut hb = handlebars::Handlebars::new();
     hb.register_escape_fn(|s| s.into());
@@ -99,6 +122,14 @@ fn render(vars: &HashMap<String, String>, root_dir: &Path, out_path_root: &Path)
     let bp_vars = if let Ok(v) = std::fs::read_to_string(Path::join(root_dir, ".ranger.yaml")) {
         let blueprint: blueprint::Blueprint = serde_yaml::from_str(&v)?;
         let v = build_vars(Some(&blueprint), vars);
+
+        if let Some(helpers) = &blueprint.helpers {
+            for (name, cmd) in helpers {
+                let h = Helper { cmd: cmd.clone() };
+                hb.register_helper(&name, Box::new(h));
+            }
+        }
+
         (Some(blueprint), v)
     } else {
         (None, build_vars(None, vars))

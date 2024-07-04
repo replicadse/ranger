@@ -4,6 +4,7 @@ use std::collections::HashMap;
 #[serde(rename_all = "snake_case")]
 pub struct Blueprint {
     pub vars: HashMap<String, BlueprintVar>,
+    pub helpers: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]

@@ -1,4 +1,4 @@
-{{ vars.template.name }}
+# {{ vars.template.name }}
 
 An example template called {{ vars.template.name }}.
 

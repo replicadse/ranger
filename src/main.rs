@@ -107,9 +107,8 @@ impl handlebars::HelperDef for Helper {
             .arg(&self.cmd)
             .env("VALUE", h.param(0).unwrap().value().render())
             .output()?;
-        let v = serde_json::Value::String(
-            String::from_utf8(output.stdout).unwrap()
-        );
+        assert!(output.status.success());
+        let v = serde_json::Value::String(String::from_utf8(output.stdout).unwrap());
         Ok(handlebars::ScopedJson::Derived(v))
     }
 }

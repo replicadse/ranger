@@ -64,9 +64,9 @@ async fn main() -> Result<()> {
                         },
                     }
                 },
-                | crate::args::GenerateCommand::Local { out, source, vars, force } => {
+                | crate::args::GenerateCommand::Local { out, folder, vars, force } => {
                     let out_path_root = Path::new(&out);
-                    let source = Path::new(&source);
+                    let folder = Path::new(&folder);
 
                     let mut fo = FetchOptions::new();
                     fo.depth(1);
@@ -78,7 +78,7 @@ async fn main() -> Result<()> {
                         return Err(anyhow::anyhow!("failed to create output directory - might already exist"));
                     }
 
-                    match render(&vars, &source, out_path_root) {
+                    match render(&vars, &folder, out_path_root) {
                         | Ok(_) => Ok(()),
                         | Err(e) => {
                             std::fs::remove_dir_all(out_path_root)?;

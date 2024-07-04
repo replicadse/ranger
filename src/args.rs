@@ -45,7 +45,7 @@ pub enum Command {
 pub enum GenerateCommand {
     Local {
         out: String,
-        source: String,
+        folder: String,
         vars: HashMap<String, String>,
         force: bool,
     },
@@ -127,7 +127,7 @@ impl ClapArgumentLoader {
                         clap::Command::new("local")
                             .about("Generate from a local source folder.")
                             .arg(clap::Arg::new("out").short('o').long("out").required(true))
-                            .arg(clap::Arg::new("source").short('s').long("source").required(true))
+                            .arg(clap::Arg::new("folder").short('f').long("folder").required(true))
                             .arg(
                                 clap::Arg::new("var")
                                     .short('v')
@@ -209,7 +209,7 @@ impl ClapArgumentLoader {
                 }
                 Command::Generate(GenerateCommand::Local {
                     out: subc.get_one::<String>("out").unwrap().into(),
-                    source: subc.get_one::<String>("source").unwrap().into(),
+                    folder: subc.get_one::<String>("folder").unwrap().into(),
                     vars,
                     force: subc.get_flag("force"),
                 })

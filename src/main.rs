@@ -5,7 +5,7 @@ pub mod error;
 pub mod reference;
 mod blueprint;
 
-use {anyhow::Result, args::ManualFormat, blueprint::Blueprint, git2::FetchOptions, handlebars::JsonRender, std::{collections::HashMap, path::{Path, PathBuf}}};
+use {anyhow::Result, args::ManualFormat, blueprint::Blueprint, git2::FetchOptions, std::{collections::HashMap, path::{Path, PathBuf}}};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -53,7 +53,8 @@ async fn main() -> Result<()> {
                         return Err(anyhow::anyhow!("failed to create output directory - might already exist"));
                     }
 
-                    let render_result = render(&vars, &root_dir, out_path_root);
+                    let blueprint = serde_yaml::from_str::<Blueprint>(&std::fs::read_to_string(Path::join(&temp_dir, ".ranger.yaml")).unwrap()).unwrap();
+                    let render_result = render(&blueprint, &vars, &root_dir, out_path_root).await;
                     std::fs::remove_dir_all(temp_dir)?; // remove temp dir in any case
 
                     match render_result {
@@ -78,7 +79,9 @@ async fn main() -> Result<()> {
                         return Err(anyhow::anyhow!("failed to create output directory - might already exist"));
                     }
 
-                    match render(&vars, &folder, out_path_root) {
+                    let blueprint = serde_yaml::from_str::<Blueprint>(&std::fs::read_to_string(Path::join(folder, ".ranger.yaml")).unwrap()).unwrap();
+
+                    match render(&blueprint, &vars, &folder, out_path_root).await {
                         | Ok(_) => Ok(()),
                         | Err(e) => {
                             std::fs::remove_dir_all(out_path_root)?;
@@ -91,54 +94,27 @@ async fn main() -> Result<()> {
     }
 }
 
-struct Helper {
-    cmd: String,
-}
-impl handlebars::HelperDef for Helper {
-    fn call_inner<'reg: 'rc, 'rc>(
-        &self,
-        h: &handlebars::Helper<'rc>,
-        _: &handlebars::Handlebars<'reg>,
-        _: &handlebars::Context,
-        _: &mut handlebars::RenderContext<'reg, 'rc>
-    ) -> std::result::Result<handlebars::ScopedJson<'rc>, handlebars::RenderError>{
-        let output = std::process::Command::new("sh")
-            .arg("-c")
-            .arg(&self.cmd)
-            .env("VALUE", h.param(0).unwrap().value().render())
-            .output()?;
-        assert!(output.status.success());
-        let v = serde_json::Value::String(String::from_utf8(output.stdout).unwrap());
-        Ok(handlebars::ScopedJson::Derived(v))
-    }
-}
-
-fn render(vars: &HashMap<String, String>, root_dir: &Path, out_path_root: &Path) -> Result<(), anyhow::Error> {
-    let mut hb = handlebars::Handlebars::new();
-    hb.register_escape_fn(|s| s.into());
-    hb.set_strict_mode(true);
-
-    let bp_vars = if let Ok(v) = std::fs::read_to_string(Path::join(root_dir, ".ranger.yaml")) {
-        let blueprint: blueprint::Blueprint = serde_yaml::from_str(&v)?;
-        let v = build_vars(Some(&blueprint), vars);
-
-        if let Some(helpers) = &blueprint.helpers {
-            for (name, cmd) in helpers {
-                let h = Helper { cmd: cmd.clone() };
-                hb.register_helper(&name, Box::new(h));
-            }
-        }
-
-        (Some(blueprint), v)
+async fn render(bp: &Blueprint, value_overrides: &HashMap<String, String>, root_dir: &Path, out_path_root: &Path) -> Result<(), anyhow::Error> {
+    let values = if let Some(variables) = &bp.template.variables {
+        complate::render::populate_variables(
+            variables,
+            value_overrides,
+            &complate::render::ShellTrust::Ultimate,
+            &complate::render::Backend::CLI,
+            Some("vars".to_owned()),
+        )
+        .await?
     } else {
-        (None, build_vars(None, vars))
+        HashMap::<_, _>::new()
     };
+
+    let hb = complate::render::make_handlebars(&values, &bp.template.helpers, &complate::render::ShellTrust::Ultimate, true).await?;
 
     for w in walkdir::WalkDir::new(root_dir) {
         let entry = w?;
         let path = entry.path();
 
-        let rel_path = hb.render_template(path.strip_prefix(&root_dir)?.to_str().unwrap(), &bp_vars.1)?;
+        let rel_path = hb.0.render_template(&path.strip_prefix(&root_dir)?.to_str().unwrap(), &hb.1).map_err(|e| anyhow::anyhow!(e))?;
         if rel_path == ".ranger.yaml" {
             continue;
         }
@@ -148,53 +124,10 @@ fn render(vars: &HashMap<String, String>, root_dir: &Path, out_path_root: &Path)
             std::fs::create_dir_all(out_path)?;
         } else {
             let content = std::fs::read_to_string(path)?;
-            let rendered = hb.render_template(&content, &bp_vars.1)?;
+            let rendered = hb.0.render_template(&content, &hb.1).map_err(|e| anyhow::anyhow!(e))?;
             std::fs::write(out_path, rendered)?;
         }
     }
 
     Ok(())
-}
-
-fn build_vars(blueprint: Option<&Blueprint>, vars: &HashMap<String, String>) -> serde_json::Value {
-    fn recursive_add(namespace: &mut std::collections::VecDeque<String>, parent: &mut serde_json::Value, value: &str) {
-        let current_namespace = namespace.pop_front().unwrap();
-        match namespace.len() {
-            | 0 => {
-                parent
-                    .as_object_mut()
-                    .unwrap()
-                    .entry(&current_namespace)
-                    .or_insert(serde_json::Value::String(value.into()));
-            },
-            | _ => {
-                let p = parent
-                    .as_object_mut()
-                    .unwrap()
-                    .entry(&current_namespace)
-                    .or_insert(serde_json::Value::Object(serde_json::Map::new()));
-                recursive_add(namespace, p, value);
-            },
-        }
-    }
-
-    let mut vars_map = serde_json::Value::Object(serde_json::Map::new());
-    if let Some(blueprint) = blueprint {
-        for v in &blueprint.vars {
-            if let Some(default_value) = &v.1.default {
-                let namespaces_vec: Vec<String> = v.0.split('.').map(|s| s.to_string()).collect();
-                let mut namespaces = std::collections::VecDeque::from(namespaces_vec);
-                recursive_add(&mut namespaces, &mut vars_map, &default_value);
-            }
-        }
-    }
-    for v in vars {
-        let namespaces_vec: Vec<String> = v.0.split('.').map(|s| s.to_string()).collect();
-        let mut namespaces = std::collections::VecDeque::from(namespaces_vec);
-        recursive_add(&mut namespaces, &mut vars_map, v.1);
-    }
-    let mut values_json = HashMap::<String, serde_json::Value>::new();
-    values_json.insert("vars".to_owned(), vars_map);
-
-    serde_json::to_value(&values_json).unwrap()
 }

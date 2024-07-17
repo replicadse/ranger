@@ -1,9 +1,22 @@
-vars:
-  app.name: {}
-  app.about: {}
-  app.description: {}
-  app.cargo.keywords: {}
-  app.cargo.categories: {}
-  app.repo: {}
-  author.name: {}
-  author.email: {}
+version: '0.2'
+template:
+  variables:
+    'app.name':
+      prompt: "app name"
+    'app.about':
+      prompt: "app about"
+    'app.description':
+      prompt: "app description"
+    'app.cargo.keywords':
+      prompt: "app cargo keywords"
+    'app.cargo.categories':
+      prompt: "app cargo categories"
+    'app.repo':
+      prompt: "app repo"
+    'author.name':
+      prompt: "author name"
+    'author.email':
+      prompt: "author email"
+  helpers:
+    "_decode": "printf $VALUE | base64 -d"
+    "_encode": "printf $VALUE | base64"

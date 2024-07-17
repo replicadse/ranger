@@ -1,6 +1,8 @@
-vars:
-  template.name:
-    default: "someexample"
-helpers:
-  "_decode": "printf $VALUE | base64 -d"
-  "_encode": "printf $VALUE | base64"
+version: '0.2'
+template:
+  variables:
+    'template.name':
+      prompt: "template name"
+  helpers:
+    "_decode": "printf $VALUE | base64 -d"
+    "_encode": "printf $VALUE | base64"

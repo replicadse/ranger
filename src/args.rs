@@ -1,4 +1,15 @@
-use {crate::error::Error, anyhow::Result, clap::{Arg, ArgAction}, std::{collections::HashMap, str::FromStr}};
+use std::{
+    collections::HashMap,
+    str::FromStr,
+};
+
+use anyhow::Result;
+use clap::{
+    Arg,
+    ArgAction,
+};
+
+use crate::error::Error;
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Privilege {
@@ -106,22 +117,25 @@ impl ClapArgumentLoader {
                         clap::Command::new("git")
                             .about("Generate from git repo.")
                             .arg(clap::Arg::new("out").short('o').long("out").required(true))
-                            .arg(clap::Arg::new("repo").short('r').long("repo").default_value("https://github.com/replicadse/ranger.git"))
+                            .arg(
+                                clap::Arg::new("repo")
+                                    .short('r')
+                                    .long("repo")
+                                    .default_value("https://github.com/replicadse/ranger.git"),
+                            )
                             .arg(clap::Arg::new("branch").short('b').long("branch").default_value("master"))
                             .arg(clap::Arg::new("folder").short('f').long("folder").default_value("./"))
                             .arg(
-                                clap::Arg::new("var")
-                                    .short('v')
-                                    .long("var")
-                                    .action(ArgAction::Append)
-                                    .help("A variable in the template (placeholder). This takes precendence over varfile."),
+                                clap::Arg::new("var").short('v').long("var").action(ArgAction::Append).help(
+                                    "A variable in the template (placeholder). This takes precendence over varfile.",
+                                ),
                             )
                             .arg(
                                 clap::Arg::new("varfile")
                                     .long("varfile")
                                     .help("A file path containing variables in the template (placeholder)."),
                             )
-                            .arg(clap::Arg::new("force").long("force").action(ArgAction::SetTrue))
+                            .arg(clap::Arg::new("force").long("force").action(ArgAction::SetTrue)),
                     )
                     .subcommand(
                         clap::Command::new("local")
@@ -129,18 +143,16 @@ impl ClapArgumentLoader {
                             .arg(clap::Arg::new("out").short('o').long("out").required(true))
                             .arg(clap::Arg::new("folder").short('f').long("folder").required(true))
                             .arg(
-                                clap::Arg::new("var")
-                                    .short('v')
-                                    .long("var")
-                                    .action(ArgAction::Append)
-                                    .help("A variable in the template (placeholder). This takes precendence over varfile."),
+                                clap::Arg::new("var").short('v').long("var").action(ArgAction::Append).help(
+                                    "A variable in the template (placeholder). This takes precendence over varfile.",
+                                ),
                             )
                             .arg(
                                 clap::Arg::new("varfile")
                                     .long("varfile")
                                     .help("A file path containing variables in the template (placeholder)."),
                             )
-                            .arg(clap::Arg::new("force").long("force").action(ArgAction::SetTrue))
+                            .arg(clap::Arg::new("force").long("force").action(ArgAction::SetTrue)),
                     ),
             )
     }
@@ -214,7 +226,7 @@ impl ClapArgumentLoader {
                     force: subc.get_flag("force"),
                 })
             } else {
-                return Err(Error::UnknownCommand.into());    
+                return Err(Error::UnknownCommand.into());
             }
         } else {
             return Err(Error::UnknownCommand.into());

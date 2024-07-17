@@ -1,11 +1,22 @@
 include!("check_features.rs");
 
 pub mod args;
+mod blueprint;
 pub mod error;
 pub mod reference;
-mod blueprint;
 
-use {anyhow::Result, args::ManualFormat, blueprint::Blueprint, git2::FetchOptions, std::{collections::HashMap, path::{Path, PathBuf}}};
+use std::{
+    collections::HashMap,
+    path::{
+        Path,
+        PathBuf,
+    },
+};
+
+use anyhow::Result;
+use args::ManualFormat;
+use blueprint::Blueprint;
+use git2::FetchOptions;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -33,7 +44,14 @@ async fn main() -> Result<()> {
         },
         | crate::args::Command::Generate(c) => {
             match c {
-                | crate::args::GenerateCommand::Git { out, repo, branch, folder, vars, force } => {
+                | crate::args::GenerateCommand::Git {
+                    out,
+                    repo,
+                    branch,
+                    folder,
+                    vars,
+                    force,
+                } => {
                     let out_path_root = Path::new(&out);
                     let temp_dir = Path::join(&std::env::temp_dir(), uuid::Uuid::new_v4().to_string());
                     let root_dir = Path::join(&temp_dir, &folder);
@@ -41,19 +59,21 @@ async fn main() -> Result<()> {
                     let mut fo = FetchOptions::new();
                     fo.depth(1);
 
-                    git2::build::RepoBuilder::new()
-                        .branch(&branch)
-                        .fetch_options(fo)
-                        .clone(&repo, &temp_dir)?;
+                    git2::build::RepoBuilder::new().branch(&branch).fetch_options(fo).clone(&repo, &temp_dir)?;
 
                     if force {
                         let _ = std::fs::remove_dir_all(&out);
                     }
                     if std::fs::create_dir_all(&out).is_err() {
-                        return Err(anyhow::anyhow!("failed to create output directory - might already exist"));
+                        return Err(anyhow::anyhow!(
+                            "failed to create output directory - might already exist"
+                        ));
                     }
 
-                    let blueprint = serde_yaml::from_str::<Blueprint>(&std::fs::read_to_string(Path::join(&temp_dir, ".ranger.yaml")).unwrap()).unwrap();
+                    let blueprint = serde_yaml::from_str::<Blueprint>(
+                        &std::fs::read_to_string(Path::join(&temp_dir, &folder).join(".ranger.yaml")).unwrap(),
+                    )
+                    .unwrap();
                     let render_result = render(&blueprint, &vars, &root_dir, out_path_root).await;
                     std::fs::remove_dir_all(temp_dir)?; // remove temp dir in any case
 
@@ -65,7 +85,12 @@ async fn main() -> Result<()> {
                         },
                     }
                 },
-                | crate::args::GenerateCommand::Local { out, folder, vars, force } => {
+                | crate::args::GenerateCommand::Local {
+                    out,
+                    folder,
+                    vars,
+                    force,
+                } => {
                     let out_path_root = Path::new(&out);
                     let folder = Path::new(&folder);
 
@@ -76,10 +101,15 @@ async fn main() -> Result<()> {
                         let _ = std::fs::remove_dir_all(&out);
                     }
                     if std::fs::create_dir_all(&out).is_err() {
-                        return Err(anyhow::anyhow!("failed to create output directory - might already exist"));
+                        return Err(anyhow::anyhow!(
+                            "failed to create output directory - might already exist"
+                        ));
                     }
 
-                    let blueprint = serde_yaml::from_str::<Blueprint>(&std::fs::read_to_string(Path::join(folder, ".ranger.yaml")).unwrap()).unwrap();
+                    let blueprint = serde_yaml::from_str::<Blueprint>(
+                        &std::fs::read_to_string(Path::join(folder, ".ranger.yaml")).unwrap(),
+                    )
+                    .unwrap();
 
                     match render(&blueprint, &vars, &folder, out_path_root).await {
                         | Ok(_) => Ok(()),
@@ -90,11 +120,16 @@ async fn main() -> Result<()> {
                     }
                 },
             }
-        }
+        },
     }
 }
 
-async fn render(bp: &Blueprint, value_overrides: &HashMap<String, String>, root_dir: &Path, out_path_root: &Path) -> Result<(), anyhow::Error> {
+async fn render(
+    bp: &Blueprint,
+    value_overrides: &HashMap<String, String>,
+    root_dir: &Path,
+    out_path_root: &Path,
+) -> Result<(), anyhow::Error> {
     let values = if let Some(variables) = &bp.template.variables {
         complate::render::populate_variables(
             variables,
@@ -108,13 +143,21 @@ async fn render(bp: &Blueprint, value_overrides: &HashMap<String, String>, root_
         HashMap::<_, _>::new()
     };
 
-    let hb = complate::render::make_handlebars(&values, &bp.template.helpers, &complate::render::ShellTrust::Ultimate, true).await?;
+    let hb = complate::render::make_handlebars(
+        &values,
+        &bp.template.helpers,
+        &complate::render::ShellTrust::Ultimate,
+        true,
+    )
+    .await?;
 
     for w in walkdir::WalkDir::new(root_dir) {
         let entry = w?;
         let path = entry.path();
 
-        let rel_path = hb.0.render_template(&path.strip_prefix(&root_dir)?.to_str().unwrap(), &hb.1).map_err(|e| anyhow::anyhow!(e))?;
+        let rel_path =
+            hb.0.render_template(&path.strip_prefix(&root_dir)?.to_str().unwrap(), &hb.1)
+                .map_err(|e| anyhow::anyhow!(e))?;
         if rel_path == ".ranger.yaml" {
             continue;
         }

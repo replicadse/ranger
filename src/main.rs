@@ -50,6 +50,7 @@ async fn main() -> Result<()> {
                     branch,
                     folder,
                     vars,
+                    interactive,
                     force,
                 } => {
                     let out_path_root = Path::new(&out);
@@ -74,7 +75,7 @@ async fn main() -> Result<()> {
                         &std::fs::read_to_string(Path::join(&temp_dir, &folder).join(".ranger.yaml")).unwrap(),
                     )
                     .unwrap();
-                    let render_result = render(&blueprint, &vars, &root_dir, out_path_root).await;
+                    let render_result = render(&blueprint, &vars, &root_dir, out_path_root, interactive).await;
                     std::fs::remove_dir_all(temp_dir)?; // remove temp dir in any case
 
                     match render_result {
@@ -89,6 +90,7 @@ async fn main() -> Result<()> {
                     out,
                     folder,
                     vars,
+                    interactive,
                     force,
                 } => {
                     let out_path_root = Path::new(&out);
@@ -111,7 +113,7 @@ async fn main() -> Result<()> {
                     )
                     .unwrap();
 
-                    match render(&blueprint, &vars, &folder, out_path_root).await {
+                    match render(&blueprint, &vars, &folder, out_path_root, interactive).await {
                         | Ok(_) => Ok(()),
                         | Err(e) => {
                             std::fs::remove_dir_all(out_path_root)?;
@@ -129,13 +131,19 @@ async fn render(
     value_overrides: &HashMap<String, String>,
     root_dir: &Path,
     out_path_root: &Path,
+    interactive: bool,
 ) -> Result<(), anyhow::Error> {
+    let backend = if interactive {
+        &complate::render::Backend::CLI
+    } else {
+        &complate::render::Backend::Headless
+    };
     let values = if let Some(variables) = &bp.template.variables {
         complate::render::populate_variables(
             variables,
             value_overrides,
             &complate::render::ShellTrust::Ultimate,
-            &complate::render::Backend::CLI,
+            backend,
             Some("vars".to_owned()),
         )
         .await?

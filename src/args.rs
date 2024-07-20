@@ -58,6 +58,7 @@ pub enum GenerateCommand {
         out: String,
         folder: String,
         vars: HashMap<String, String>,
+        interactive: bool,
         force: bool,
     },
     Git {
@@ -66,6 +67,7 @@ pub enum GenerateCommand {
         branch: String,
         folder: String,
         vars: HashMap<String, String>,
+        interactive: bool,
         force: bool,
     },
 }
@@ -135,6 +137,7 @@ impl ClapArgumentLoader {
                                     .long("varfile")
                                     .help("A file path containing variables in the template (placeholder)."),
                             )
+                            .arg(clap::Arg::new("interactive").long("interactive").short('i').action(ArgAction::SetTrue))
                             .arg(clap::Arg::new("force").long("force").action(ArgAction::SetTrue)),
                     )
                     .subcommand(
@@ -152,6 +155,7 @@ impl ClapArgumentLoader {
                                     .long("varfile")
                                     .help("A file path containing variables in the template (placeholder)."),
                             )
+                            .arg(clap::Arg::new("interactive").long("interactive").short('i').action(ArgAction::SetTrue))
                             .arg(clap::Arg::new("force").long("force").action(ArgAction::SetTrue)),
                     ),
             )
@@ -202,6 +206,7 @@ impl ClapArgumentLoader {
                     branch: subc.get_one::<String>("branch").unwrap().into(),
                     folder: subc.get_one::<String>("folder").unwrap().into(),
                     vars,
+                    interactive: subc.get_flag("interactive"),
                     force: subc.get_flag("force"),
                 })
             } else if let Some(subc) = subc.subcommand_matches("local") {
@@ -223,6 +228,7 @@ impl ClapArgumentLoader {
                     out: subc.get_one::<String>("out").unwrap().into(),
                     folder: subc.get_one::<String>("folder").unwrap().into(),
                     vars,
+                    interactive: subc.get_flag("interactive"),
                     force: subc.get_flag("force"),
                 })
             } else {

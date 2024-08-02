@@ -137,7 +137,9 @@ impl ClapArgumentLoader {
                                     .long("varfile")
                                     .help("A file path containing variables in the template (placeholder)."),
                             )
-                            .arg(clap::Arg::new("interactive").long("interactive").short('i').action(ArgAction::SetTrue))
+                            .arg(
+                                clap::Arg::new("interactive").long("interactive").short('i').action(ArgAction::SetTrue),
+                            )
                             .arg(clap::Arg::new("force").long("force").action(ArgAction::SetTrue)),
                     )
                     .subcommand(
@@ -155,7 +157,9 @@ impl ClapArgumentLoader {
                                     .long("varfile")
                                     .help("A file path containing variables in the template (placeholder)."),
                             )
-                            .arg(clap::Arg::new("interactive").long("interactive").short('i').action(ArgAction::SetTrue))
+                            .arg(
+                                clap::Arg::new("interactive").long("interactive").short('i').action(ArgAction::SetTrue),
+                            )
                             .arg(clap::Arg::new("force").long("force").action(ArgAction::SetTrue)),
                     ),
             )

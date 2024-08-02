@@ -1,5 +1,5 @@
 [hooks]
-pre-push = "cargo build --release && cargo test"
+pre-commit = "cargo test"
 
 [logging]
 verbose = true
